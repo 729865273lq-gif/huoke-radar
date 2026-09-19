@@ -1,0 +1,706 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>获客雷达 · AI 评论区获客</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a0a0a'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23ffffff' stroke-width='1.5'/%3E%3Ccircle cx='16' cy='16' r='4' fill='none' stroke='%23ff7a17' stroke-width='1.5'/%3E%3Ccircle cx='16' cy='16' r='1.6' fill='%23ffffff'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --primary: #0066cc;
+    --primary-focus: #0071e3;
+    --ink: #1d1d1f;
+    --ink-80: #333333;
+    --mute: #7a7a7a;
+    --hairline: rgba(0, 0, 0, .08);
+    --divider: #f0f0f0;
+    --canvas: #ffffff;
+    --parchment: #f5f5f7;
+    --pearl: #fafafc;
+    --ok: #248a3d;   --ok-bg: rgba(36, 138, 61, .1);    --ok-line: rgba(36, 138, 61, .22);
+    --bad: #d70015;  --bad-bg: rgba(215, 0, 21, .07);    --bad-line: rgba(215, 0, 21, .25);
+    --warn: #b25000; --warn-bg: rgba(178, 80, 0, .1);    --warn-line: rgba(178, 80, 0, .25);
+    --blue-bg: rgba(0, 102, 204, .08);
+    --font: "SF Pro Text", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; background: var(--parchment); }
+  body {
+    font-family: var(--font);
+    font-size: 17px; font-weight: 400; line-height: 1.47;
+    letter-spacing: -.023em;
+    background: var(--parchment); color: var(--ink);
+    max-width: 1200px; margin: 0 auto;
+    padding: 0 24px 64px;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: rgba(0, 113, 227, .15); }
+
+  header {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap;
+    padding: 15px 0 13px; margin-bottom: 28px;
+    background: rgba(245, 245, 247, .8);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid var(--hairline);
+  }
+  header .brand { display: flex; align-items: baseline; gap: 14px; }
+  header h1 { font-size: 28px; font-weight: 600; letter-spacing: -.02em; line-height: 1.2; }
+  header nav { display: flex; align-items: center; gap: 24px; }
+  header nav a {
+    font-size: 14px; color: var(--ink); opacity: .8;
+    text-decoration: none; letter-spacing: 0;
+    transition: color .2s, opacity .2s;
+  }
+  header nav a:hover { color: var(--primary); opacity: 1; }
+  .pill {
+    font-size: 13px; padding: 5px 14px; border-radius: 999px;
+    background: var(--pearl); color: var(--ink-80);
+    border: 1px solid var(--hairline);
+    white-space: nowrap;
+  }
+  .pill.bad { color: var(--bad); background: var(--bad-bg); border-color: var(--bad-line); }
+
+  .card {
+    background: var(--canvas);
+    border: 1px solid var(--hairline);
+    border-radius: 18px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  .card[id] { scroll-margin-top: 76px; }
+  .card h2 {
+    font-size: 21px; font-weight: 600;
+    letter-spacing: -.02em; line-height: 1.2;
+    margin-bottom: 14px;
+  }
+  .group-label {
+    font-size: 14px; font-weight: 600;
+    color: var(--ink-80); letter-spacing: -.01em;
+    margin: 4px 0 8px;
+  }
+  .bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .hint { font-size: 12.5px; color: var(--mute); margin-top: 8px; }
+
+  form { display: flex; gap: 8px; flex-wrap: wrap; }
+  input, select, textarea {
+    font-family: var(--font); font-size: 15px; font-weight: 400;
+    padding: 9px 14px;
+    border: 1px solid rgba(0, 0, 0, .12);
+    border-radius: 12px;
+    background: var(--canvas); color: var(--ink);
+    transition: border-color .2s, box-shadow .2s;
+  }
+  input::placeholder, textarea::placeholder { color: var(--mute); }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--primary-focus);
+    box-shadow: 0 0 0 3px rgba(0, 113, 227, .15);
+  }
+  input#url { flex: 1; min-width: 260px; }
+  input#searchBox { border-radius: 999px; padding: 9px 18px; }
+
+  button {
+    font-family: var(--font); font-size: 15px; font-weight: 400;
+    padding: 8px 18px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    background: var(--primary); color: #fff;
+    cursor: pointer;
+    transition: background .2s, border-color .2s, color .2s, transform .1s, opacity .2s;
+  }
+  button:hover { background: var(--primary-focus); }
+  button:active { transform: scale(.95); }
+  button:focus-visible { outline: 2px solid var(--primary-focus); outline-offset: 2px; }
+  button.ghost {
+    background: transparent; color: var(--ink-80);
+    border-color: var(--hairline);
+  }
+  button.ghost:hover { background: var(--blue-bg); color: var(--primary); border-color: var(--primary); }
+  button.danger { background: transparent; color: var(--bad); border-color: var(--bad-line); }
+  button.danger:hover { background: var(--bad-bg); border-color: var(--bad-line); }
+  button:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+  .target-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid var(--divider);
+    font-size: 15px;
+  }
+  .target-row:last-child { border-bottom: none; }
+  .tag {
+    font-size: 12px; letter-spacing: .01em;
+    padding: 3px 10px; border-radius: 6px;
+    background: var(--parchment); color: var(--ink-80);
+    border: 1px solid var(--hairline);
+    white-space: nowrap;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th, td {
+    text-align: left; padding: 10px 12px;
+    border-bottom: 1px solid var(--divider);
+    vertical-align: top;
+  }
+  th {
+    font-size: 12.5px; font-weight: 600;
+    letter-spacing: .02em; color: var(--mute);
+  }
+  tbody tr:hover td { background: #fafafa; }
+
+  .badge {
+    font-size: 12.5px; letter-spacing: .01em;
+    padding: 3px 12px; border-radius: 999px;
+    white-space: nowrap;
+  }
+  .badge.咨询 { color: var(--primary); background: var(--blue-bg); border: 1px solid rgba(0, 102, 204, .18); }
+  .badge.购买 { color: var(--ok); background: var(--ok-bg); border: 1px solid var(--ok-line); }
+  .badge.闲聊, .badge.无关 { color: var(--mute); background: var(--parchment); border: 1px solid var(--hairline); }
+  .badge.负面 { color: var(--bad); background: var(--bad-bg); border: 1px solid var(--bad-line); }
+
+  .status { font-size: 12.5px; color: var(--mute); }
+  .dm {
+    background: #fafafa;
+    border: 1px solid var(--hairline);
+    border-radius: 12px;
+    padding: 8px 12px;
+    color: var(--ink-80); font-size: 13.5px; line-height: 1.6;
+  }
+  .empty { color: var(--mute); text-align: center; padding: 32px 0; font-size: 15px; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+    background: var(--ink); color: #fff;
+    padding: 12px 22px; border-radius: 12px;
+    font-size: 14px; max-width: 80vw;
+    opacity: 0; transition: opacity .3s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+
+  /* —— 科技感细节（白底上的克制点缀） —— */
+  body {
+    background-image:
+      linear-gradient(rgba(0, 0, 0, .022) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 0, 0, .022) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  header::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(0, 102, 204, .45), transparent);
+  }
+  .radar {
+    position: relative; width: 26px; height: 26px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 102, 204, .55);
+    align-self: center;
+  }
+  .radar::before { content: ""; position: absolute; left: 0; top: 50%; width: 100%; height: 1px; background: rgba(0, 102, 204, .3); }
+  .radar::after { content: ""; position: absolute; left: 50%; top: 0; width: 1px; height: 100%; background: rgba(0, 102, 204, .3); }
+  .radar .sweep {
+    position: absolute; inset: 0; border-radius: 50%;
+    background: conic-gradient(from 0deg, rgba(0, 102, 204, .45), transparent 70deg);
+    animation: radar-sweep 2.6s linear infinite;
+  }
+  .radar .dot {
+    position: absolute; left: 50%; top: 50%;
+    width: 4px; height: 4px; margin: -2px 0 0 -2px;
+    border-radius: 50%; background: var(--primary);
+  }
+  @keyframes radar-sweep { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .radar .sweep { animation: none; } }
+
+  @media (max-width: 768px) {
+    body { padding: 0 14px 40px; }
+    header { position: static; }
+    header h1 { font-size: 24px; }
+    .card { padding: 16px; border-radius: 14px; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="radar" aria-hidden="true"><div class="sweep"></div><div class="dot"></div></div>
+      <h1>获客雷达</h1>
+      <span class="pill" id="llmStatus">检查 AI 状态中…</span>
+    </div>
+    <nav>
+      <a href="#leads">线索流</a>
+      <a href="#targets">盯同行</a>
+      <a href="#accounts">账号</a>
+      <a href="#scripts">话术</a>
+    </nav>
+  </header>
+
+  <section class="card" id="leads">
+    <div class="bar">
+      <h2>线索流</h2>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input id="searchBox" placeholder="搜索评论/作者/同行…" style="width:190px">
+        <button class="ghost" id="searchBtn">🔍 搜索</button>
+        <button class="ghost" id="clearSearch">清除</button>
+        <button class="ghost" id="collectBtn">🔄 立即抓一轮</button>
+        <span id="scanState" class="status" style="color:var(--mute)"></span>
+        <button class="ghost" id="refreshBtn">刷新</button>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>来源</th><th>评论</th><th>意图</th><th>AI 拟的私信</th><th>状态</th><th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="leadRows"></tbody>
+    </table>
+    <div class="empty" id="emptyTip">还没有线索。添加同行后点「立即抓一轮」。</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:10px">
+      <button class="ghost" id="prevPage">← 上一页</button>
+      <span id="pageInfo" class="status"></span>
+      <button class="ghost" id="nextPage">下一页 →</button>
+    </div>
+  </section>
+
+  <section class="card" id="targets">
+    <div class="bar">
+      <h2>盯哪些同行</h2>
+      <div style="display:flex;gap:8px">
+        <button class="ghost" id="dedupBtn">🧹 查重</button>
+        <button class="ghost" id="targetsToggle">收起</button>
+      </div>
+    </div>
+    <div id="targetsBody">
+    <form id="addForm">
+      <select id="platform">
+        <option value="douyin">抖音</option>
+        <option value="xiaohongshu">小红书</option>
+        <option value="kuaishou">快手</option>
+      </select>
+      <input id="url" placeholder="粘贴博主主页链接（网页版复制地址栏；App 复制的短链也可以）">
+      <input id="nickname" placeholder="备注名（可选）" style="max-width:160px">
+      <button type="submit">添加</button>
+    </form>
+    <div id="targetList" style="margin-top:10px"></div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+      <button class="ghost" id="targetPrev">← 上一页</button>
+      <span id="targetPageInfo" class="status"></span>
+      <button class="ghost" id="targetNext">下一页 →</button>
+    </div>
+    </div>
+  </section>
+
+  <section class="card" id="accounts">
+    <h2>发信账号</h2>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button id="loginDy">登录抖音（弹窗扫码）</button>
+      <button id="loginXhs">登录小红书（发私信用）</button>
+      <button id="loginXhsC">登录小红书（采集用）</button>
+      <button id="loginKs">登录快手（弹窗扫码）</button>
+      <button class="ghost" id="checkLogin">检查登录状态</button>
+      <button class="danger" id="logoutDy">退出抖音登录</button>
+      <span id="loginStatus" class="status">状态未知</span>
+    </div>
+    <div style="margin-top:8px;font-size:12px;color:var(--mute)">
+      点登录后会弹出浏览器窗口，用手机抖音/小红书 App 扫码即可。登录一次后，抓评论和发私信都会用这个身份。
+    </div>
+  </section>
+
+  <section class="card" id="scripts">
+    <div class="bar">
+      <h2>私信话术</h2>
+      <button id="saveFollowups">保存全部</button>
+    </div>
+    <div class="group-label">M1 · 自动第一句（AI 按此框架填空）</div>
+    <textarea id="tplBox" style="width:100%;height:64px;font:inherit;padding:8px;border-radius:12px"
+      placeholder="粘贴你的话术模板，用 {问的事} 和 {具体信息} 做占位"></textarea>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button id="saveTpl">保存 M1</button>
+      <button class="ghost" id="clearTpl">恢复自由发挥</button>
+    </div>
+    <div class="hint">
+      AI 会把对方评论里的实际内容填进 {问的事} 和 {具体信息}。「保存 M1」后，新抓到的线索按此框架生成私信；清空则恢复 AI 自由发挥。
+    </div>
+    <div class="group-label" style="margin-top:20px">M2 · 对方回复后（引导留联系方式）</div>
+    <div style="display:flex;gap:8px;align-items:flex-start">
+      <textarea id="m2Box" style="flex:1;height:46px;font:inherit;padding:8px;border-radius:12px"></textarea>
+      <button class="ghost" id="copyM2">复制</button>
+    </div>
+    <div class="group-label" style="margin-top:16px">M3 · 24 小时没回（补救）</div>
+    <div style="display:flex;gap:8px;align-items:flex-start">
+      <textarea id="m3Box" style="flex:1;height:46px;font:inherit;padding:8px;border-radius:12px"></textarea>
+      <button class="ghost" id="copyM3">复制</button>
+    </div>
+    <div class="hint">
+      对方回复后复制 M2 去平台粘贴发送；没回复就用 M3。话术存本地，可随时修改后点「保存全部」。
+    </div>
+  </section>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let toastTimer = null;
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, opts);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || ("请求失败 " + res.status));
+  return data;
+}
+
+const INTENT_ORDER = { 咨询: 0, 购买: 1, 闲聊: 2, 负面: 3, 无关: 4 };
+const STATUS_TEXT = { pending: "待发", sent: "已发", replied: "已回复", ignored: "忽略", dm_blocked: "私信受限" };
+const PLATFORM_NAME = { douyin: "抖音", xiaohongshu: "小红书", kuaishou: "快手" };
+
+async function loadHealth() {
+  try {
+    const h = await api("/api/health");
+    const el = $("llmStatus");
+    if (h.llm_configured) { el.textContent = "AI 已就绪"; el.classList.remove("bad"); }
+    else { el.textContent = "⚠ 未配置 AI Key（.env）"; el.classList.add("bad"); }
+    const st = (p) => (h[p + "_logged_in"] ? "✅" : "❌");
+    $("loginStatus").textContent =
+      "抖音 " + st("douyin") + "　小红书(发私信) " + st("xiaohongshu") +
+      "　小红书(采集) " + st("xhs_collector") + "　快手 " + st("kuaishou");
+  } catch (e) { /* ignore */ }
+}
+
+async function doLogin(platform) {
+  try {
+    const r = await api("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ platform }),
+    });
+    toast(r.message);
+  } catch (e) { toast(e.message); }
+}
+
+$("loginDy").addEventListener("click", () => doLogin("douyin"));
+$("loginXhs").addEventListener("click", () => doLogin("xiaohongshu"));
+$("loginXhsC").addEventListener("click", () => doLogin("xiaohongshu_collector"));
+$("loginKs").addEventListener("click", () => doLogin("kuaishou"));
+$("checkLogin").addEventListener("click", loadHealth);
+
+async function doLogout(platform) {
+  try {
+    const r = await api("/api/logout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ platform }),
+    });
+    toast(r.message);
+    setTimeout(loadHealth, 4000);
+  } catch (e) { toast(e.message); }
+}
+$("logoutDy").addEventListener("click", () => doLogout("douyin"));
+
+let targetPage = 1;
+const TARGET_PAGE_SIZE = 10;
+
+async function loadTargets(page) {
+  if (page != null) targetPage = page;
+  try {
+    const data = await api("/api/targets?page=" + targetPage + "&page_size=" + TARGET_PAGE_SIZE);
+    const ts = data.items || [];
+    const total = data.total || 0;
+    const pages = Math.max(1, Math.ceil(total / TARGET_PAGE_SIZE));
+    const box = $("targetList");
+    if (!ts.length) {
+      box.innerHTML = '<div class="empty">还没有添加同行，上面先加几个。</div>';
+    } else {
+      box.innerHTML = ts.map((t) => `
+        <div class="target-row">
+          <span class="tag">${PLATFORM_NAME[t.platform] || esc(t.platform)}</span>
+          <span style="flex:1;word-break:break-all">${esc(t.nickname || t.url)}</span>
+          <button class="danger" data-del="${t.id}">删除</button>
+        </div>`).join("");
+      box.querySelectorAll("[data-del]").forEach((b) =>
+        b.addEventListener("click", async () => {
+          await api("/api/targets/" + b.dataset.del, { method: "DELETE" });
+          toast("已删除");
+          loadTargets();
+        }));
+    }
+    $("targetPageInfo").textContent = "第 " + targetPage + " / " + pages + " 页 · 共 " + total + " 个同行";
+    $("targetPrev").disabled = targetPage <= 1;
+    $("targetNext").disabled = targetPage >= pages;
+  } catch (e) { toast(e.message); }
+}
+
+$("targetPrev").addEventListener("click", () => { if (targetPage > 1) loadTargets(targetPage - 1); });
+$("targetNext").addEventListener("click", () => loadTargets(targetPage + 1));
+
+$("dedupBtn").addEventListener("click", async () => {
+  const b = $("dedupBtn");
+  b.disabled = true;
+  try {
+    const r = await api("/api/targets/dedup", { method: "POST" });
+    if (r.removed_targets) {
+      toast("查重完成：删除 " + r.removed_targets + " 个重复同行" +
+        "（连带清理评论 " + r.removed_comments + " 条、线索 " + r.removed_leads + " 条）");
+    } else {
+      toast("没有发现重复，共 " + r.unique_after + " 个同行 ✓");
+    }
+    loadTargets(1);
+  } catch (e) { toast(e.message); }
+  b.disabled = false;
+});
+
+function esc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+let curPage = 1;
+const PAGE_SIZE = 20;
+let searchQuery = "";
+
+async function loadLeads(page) {
+  if (page != null) curPage = page;
+  try {
+    const data = await api("/api/leads?page=" + curPage + "&page_size=" + PAGE_SIZE +
+      (searchQuery ? "&q=" + encodeURIComponent(searchQuery) : ""));
+    const ls = data.items || [];
+    const total = data.total || 0;
+    const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (!ls.length && total > 0 && curPage > 1) {
+      loadLeads(curPage - 1);
+      return;
+    }
+    if (curPage > pages) curPage = pages;
+    const body = $("leadRows");
+    $("emptyTip").style.display = ls.length ? "none" : "block";
+    body.innerHTML = ls.map((l) => `
+      <tr data-id="${l.id}">
+        <td>
+          <span class="tag">${PLATFORM_NAME[l.platform] || esc(l.platform)}</span><br>
+          <span style="font-size:12px;color:var(--mute)">${esc(l.target_nickname || "")}</span><br>
+          <span style="font-size:12px;color:var(--mute)">@${esc(l.author_name || "匿名")}</span><br>
+          <span style="font-size:11px;color:var(--mute)">📥 ${esc(l.fetched_at || "")}</span>
+        </td>
+        <td style="max-width:260px">${esc(l.comment_text || "")}
+          <div style="font-size:11px;color:var(--mute);margin-top:4px">🕐 ${esc(l.comment_time || "")}</div>
+        </td>
+        <td><span class="badge ${esc(l.intent)}">${esc(l.intent || "-")}</span>
+            ${l.score ? `<br><span class="status">意向 ${l.score}</span>` : ""}</td>
+        <td style="max-width:280px">
+          <div class="dm" data-dm="${l.id}">${esc(l.dm_draft || "")}</div>
+          <button class="ghost" data-edit="${l.id}" style="margin-top:6px">✏️ 编辑私信</button>
+        </td>
+        <td><span class="status">${STATUS_TEXT[l.status] || esc(l.status)}</span></td>
+        <td style="white-space:nowrap">
+          <button data-send="${l.id}" ${l.status === "sent" || l.status === "replied" ? "disabled" : ""}>发送</button>
+          <button class="ghost" data-mark="${l.id}" data-status="ignored">忽略</button>
+          ${l.status === "sent" ? '<button class="ghost" data-mark="' + l.id + '" data-status="replied">标记回复</button>' : ""}
+          <button class="danger" data-del="${l.id}">删除</button>
+        </td>
+      </tr>`).join("");
+    $("pageInfo").textContent = "第 " + curPage + " / " + pages + " 页 · 共 " + total + " 条线索";
+    $("prevPage").disabled = curPage <= 1;
+    $("nextPage").disabled = curPage >= pages;
+    body.querySelectorAll("[data-send]").forEach((b) =>
+      b.addEventListener("click", async () => {
+        b.disabled = true;
+        try {
+          await api("/api/leads/" + b.dataset.send + "/send", { method: "POST" });
+          toast("已发送 ✓");
+        } catch (e) { toast(e.message); }
+        b.disabled = false;
+        loadLeads();
+      }));
+    body.querySelectorAll("[data-mark]").forEach((b) =>
+      b.addEventListener("click", async () => {
+        await api("/api/leads/" + b.dataset.mark, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: b.dataset.status }),
+        });
+        toast("已更新状态");
+        loadLeads();
+      }));
+    body.querySelectorAll("[data-del]").forEach((b) =>
+      b.addEventListener("click", async () => {
+        await api("/api/leads/" + b.dataset.del, { method: "DELETE" });
+        toast("已删除");
+        loadLeads();
+      }));
+    body.querySelectorAll("[data-edit]").forEach((b) =>
+      b.addEventListener("click", () => {
+        const cell = b.closest("td");
+        const div = cell.querySelector("[data-dm]");
+        const text = div ? div.textContent : "";
+        cell.innerHTML = `
+          <textarea id="editBox" style="width:100%;height:64px;font:inherit;padding:6px;border-radius:8px">${esc(text)}</textarea>
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <button id="saveDraft">保存</button>
+            <button class="ghost" id="cancelDraft">取消</button>
+          </div>`;
+        $("saveDraft").addEventListener("click", async () => {
+          await api("/api/leads/" + b.dataset.edit, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ dm_draft: $("editBox").value }),
+          });
+          toast("私信已保存");
+          loadLeads();
+        });
+        $("cancelDraft").addEventListener("click", () => loadLeads());
+      }));
+  } catch (e) { toast(e.message); }
+}
+
+$("prevPage").addEventListener("click", () => { if (curPage > 1) loadLeads(curPage - 1); });
+$("nextPage").addEventListener("click", () => loadLeads(curPage + 1));
+
+function doSearch() {
+  searchQuery = $("searchBox").value.trim();
+  loadLeads(1);
+}
+$("searchBtn").addEventListener("click", doSearch);
+$("searchBox").addEventListener("keydown", (e) => { if (e.key === "Enter") doSearch(); });
+$("clearSearch").addEventListener("click", () => {
+  $("searchBox").value = "";
+  searchQuery = "";
+  loadLeads(1);
+});
+
+$("addForm").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  try {
+    await api("/api/targets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        platform: $("platform").value,
+        url: $("url").value.trim(),
+        nickname: $("nickname").value.trim(),
+      }),
+    });
+    $("url").value = ""; $("nickname").value = "";
+    toast("已添加同行");
+    loadTargets(1);
+  } catch (e) { toast(e.message); }
+});
+
+async function pollScanState() {
+  try {
+    const s = await api("/api/collect/status");
+    const el = $("scanState");
+    const b = $("collectBtn");
+    if (s.running) {
+      el.textContent = "🔍 扫描中：" + (s.progress || "准备中…");
+      el.style.color = "var(--primary)";
+      b.disabled = true;
+      b.textContent = "扫描中…";
+    } else {
+      b.disabled = false;
+      b.textContent = "🔄 立即抓一轮";
+      if (s.last && s.last.time) {
+        el.textContent = "上次扫描 " + s.last.time;
+        el.style.color = "var(--mute)";
+      } else {
+        el.textContent = "";
+      }
+    }
+  } catch (e) { /* 服务器未启动 */ }
+}
+
+$("collectBtn").addEventListener("click", async () => {
+  try {
+    const r = await api("/api/collect", { method: "POST" });
+    toast(r.message || "已开始");
+    pollScanState();
+  } catch (e) { toast(e.message); }
+});
+
+setInterval(pollScanState, 5000);   // 每 5 秒刷新扫描状态
+
+$("refreshBtn").addEventListener("click", loadLeads);
+
+// 盯哪些同行：收起/展开（给人看时一键隐藏名单）
+$("targetsToggle").addEventListener("click", () => {
+  const body = $("targetsBody");
+  const hide = body.style.display !== "none";
+  body.style.display = hide ? "none" : "";
+  $("targetsToggle").textContent = hide ? "展开" : "收起";
+});
+
+const DEFAULT_TEMPLATE =
+  "你好，刚看到你问「{问的事}」，我正好做这个。方便说下你{具体信息}吗？我给你个实在的参考，合适再聊～";
+
+async function loadTemplate() {
+  try {
+    const r = await api("/api/dm-template");
+    $("tplBox").value = r.template || DEFAULT_TEMPLATE;
+  } catch (e) { /* ignore */ }
+}
+
+$("saveTpl").addEventListener("click", async () => {
+  try {
+    await api("/api/dm-template", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ template: $("tplBox").value }),
+    });
+    toast("话术已保存，新线索将按此框架生成");
+  } catch (e) { toast(e.message); }
+});
+
+$("clearTpl").addEventListener("click", async () => {
+  try {
+    await api("/api/dm-template", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ template: "" }),
+    });
+    $("tplBox").value = "";
+    toast("已清除，恢复 AI 自由发挥");
+  } catch (e) { toast(e.message); }
+});
+
+async function loadFollowups() {
+  try {
+    const r = await api("/api/dm-followups");
+    $("m2Box").value = r.m2 || "";
+    $("m3Box").value = r.m3 || "";
+  } catch (e) { /* ignore */ }
+}
+
+function copyText(t) {
+  if (!t) { toast("话术为空，先填写"); return; }
+  navigator.clipboard.writeText(t)
+    .then(() => toast("已复制，去平台粘贴发送"))
+    .catch(() => toast("复制失败，请手动复制"));
+}
+
+$("copyM2").addEventListener("click", () => copyText($("m2Box").value));
+$("copyM3").addEventListener("click", () => copyText($("m3Box").value));
+$("saveFollowups").addEventListener("click", async () => {
+  try {
+    await api("/api/dm-followups", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ m2: $("m2Box").value, m3: $("m3Box").value }),
+    });
+    toast("跟进话术已保存");
+  } catch (e) { toast(e.message); }
+});
+
+loadHealth();
+loadTemplate();
+loadFollowups();
+loadTargets();
+loadLeads();
+setInterval(loadLeads, 30000);   // 每 30 秒自动刷新线索
+</script>
+</body>
+</html>
